@@ -278,16 +278,28 @@ export default function RecycleBinPage() {
 
                     {/* Thumbnail */}
                     <div className="relative aspect-[9/16] w-full bg-bg-elevated overflow-hidden">
-                      {reel.thumbnail_url ? (
+                      {reel.thumbnail_url && !reel.thumbnail_url.includes('images.unsplash.com') ? (
                         /* eslint-disable-next-line @next/next/no-img-element */
                         <img
-                          src={`/api/proxy-image?url=${encodeURIComponent(reel.thumbnail_url)}`}
+                          src={
+                            reel.thumbnail_url.includes('cdninstagram.com') || reel.thumbnail_url.includes('fbcdn.net')
+                              ? `/api/proxy-image?url=${encodeURIComponent(reel.thumbnail_url)}`
+                              : reel.thumbnail_url
+                          }
                           alt="Reel thumbnail"
                           className="w-full h-full object-cover grayscale opacity-80"
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-text-muted">
-                          <Trash2 size={24} className="opacity-40" />
+                        <div className="w-full h-full flex flex-col items-center justify-between p-6 bg-gradient-to-b from-[#161616] to-[#0A0A0A] text-center select-none relative group/mock grayscale opacity-80">
+                          <span className="text-[10px] font-mono tracking-[0.2em] text-text-muted uppercase mt-2">
+                            Instagram Reel
+                          </span>
+                          <div className="w-14 h-14 rounded-full bg-[#111] border border-border-default flex items-center justify-center text-text-secondary">
+                            <Trash2 size={20} className="text-text-muted" />
+                          </div>
+                          <div className="mb-2 text-[11px] font-mono text-text-muted flex items-center gap-1.5 justify-center">
+                            instagram.com
+                          </div>
                         </div>
                       )}
                     </div>

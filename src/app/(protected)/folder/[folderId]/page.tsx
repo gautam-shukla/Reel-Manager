@@ -300,17 +300,41 @@ export default function FolderPage() {
                   onClick={() => window.open(reel.instagram_url, '_blank')}
                   className="relative aspect-[9/16] w-full bg-gradient-to-b from-[#1a1a1a] to-[#2a2a2a] cursor-pointer overflow-hidden group-hover:opacity-95 transition-all"
                 >
-                  {reel.thumbnail_url ? (
+                  {reel.thumbnail_url && !reel.thumbnail_url.includes('images.unsplash.com') ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img
-                      src={`/api/proxy-image?url=${encodeURIComponent(reel.thumbnail_url)}`}
+                      src={
+                        reel.thumbnail_url.includes('cdninstagram.com') || reel.thumbnail_url.includes('fbcdn.net')
+                          ? `/api/proxy-image?url=${encodeURIComponent(reel.thumbnail_url)}`
+                          : reel.thumbnail_url
+                      }
                       alt="Reel thumbnail"
                       className="w-full h-full object-cover rounded-t-[10px] group-hover:scale-[1.02] transition-transform duration-300"
                     />
                   ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center text-text-secondary p-4 text-center">
-                      <Camera size={28} className="mb-2 opacity-50" />
-                      <span className="text-xs">No preview available</span>
+                    <div className="w-full h-full flex flex-col items-center justify-between p-6 bg-gradient-to-b from-[#161616] to-[#0A0A0A] text-center select-none relative group/mock">
+                      <span className="text-[10px] font-mono tracking-[0.2em] text-text-muted uppercase mt-2">
+                        Instagram Reel
+                      </span>
+                      <div className="w-14 h-14 rounded-full bg-[#111] border border-border-default flex items-center justify-center text-text-secondary group-hover:text-text-primary group-hover:border-text-secondary group-hover:shadow-[0_0_20px_rgba(255,255,255,0.06)] transition-all">
+                        <svg 
+                          width="18" 
+                          height="18" 
+                          viewBox="0 0 24 24" 
+                          fill="currentColor" 
+                          className="ml-1 text-text-secondary group-hover:text-text-primary transition-colors"
+                        >
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                      </div>
+                      <div className="mb-2 text-[11px] font-mono text-text-muted flex items-center gap-1.5 justify-center">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-65">
+                          <rect width="20" height="20" x="2" y="2" rx="5" ry="5"/>
+                          <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+                          <line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/>
+                        </svg>
+                        instagram.com
+                      </div>
                     </div>
                   )}
 
