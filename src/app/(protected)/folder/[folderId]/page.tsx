@@ -148,6 +148,28 @@ export default function FolderPage() {
     }
   }
 
+  // Handle Delete Folder
+  const handleDeleteFolder = async () => {
+    const confirmDelete = window.confirm(`Are you sure you want to delete the folder "${folderName}" and all the reels inside it? This action cannot be undone.`)
+    if (!confirmDelete || !user) return
+
+    try {
+      const { error } = await supabase
+        .from('folders')
+        .delete()
+        .eq('id', folderId)
+
+      if (!error) {
+        await refreshFolders()
+        router.push('/dashboard')
+      } else {
+        alert(`Error deleting folder: ${error.message}`)
+      }
+    } catch (err) {
+      console.error('Error deleting folder:', err)
+    }
+  }
+
   // Handle Note Inline Save
   const handleSaveNote = async (reelId: string) => {
     if (savingNoteId) return
@@ -218,13 +240,22 @@ export default function FolderPage() {
           <h2 className="text-2xl font-bold tracking-tight text-text-primary truncate pr-4 max-w-[60%]">
             {folderName}
           </h2>
-          <button
-            onClick={() => setIsAddReelOpen(true)}
-            className="btn-primary flex items-center gap-2"
-          >
-            <Plus size={16} />
-            Add Reel
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleDeleteFolder}
+              className="btn-destructive flex items-center gap-2 h-10 py-0"
+            >
+              <Trash2 size={14} />
+              Delete Folder
+            </button>
+            <button
+              onClick={() => setIsAddReelOpen(true)}
+              className="btn-primary flex items-center gap-2 h-10"
+            >
+              <Plus size={16} />
+              Add Reel
+            </button>
+          </div>
         </div>
 
         {/* Loading Spinner */}
@@ -272,7 +303,7 @@ export default function FolderPage() {
                   {reel.thumbnail_url ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img
-                      src={reel.thumbnail_url}
+                      src={`/api/proxy-image?url=${encodeURIComponent(reel.thumbnail_url)}`}
                       alt="Reel thumbnail"
                       className="w-full h-full object-cover rounded-t-[10px] group-hover:scale-[1.02] transition-transform duration-300"
                     />

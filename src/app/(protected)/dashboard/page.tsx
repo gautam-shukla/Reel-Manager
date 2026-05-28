@@ -2,11 +2,35 @@
 
 import { useApp } from '@/context/AppContext'
 import { useRouter } from 'next/navigation'
-import { FolderPlus, FolderOpen } from 'lucide-react'
+import { FolderPlus, FolderOpen, Trash2 } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 export default function DashboardPage() {
-  const { folders, searchQuery, setIsAddFolderOpen } = useApp()
+  const { folders, searchQuery, setIsAddFolderOpen, refreshFolders } = useApp()
   const router = useRouter()
+  const supabase = createClient()
+
+  // Handle Delete Folder from Card
+  const handleDeleteFolderCard = async (folderId: string, folderName: string, e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent navigating to the folder view
+    const confirmDelete = window.confirm(`Are you sure you want to delete the folder "${folderName}" and all the reels inside it? This action cannot be undone.`)
+    if (!confirmDelete) return
+
+    try {
+      const { error } = await supabase
+        .from('folders')
+        .delete()
+        .eq('id', folderId)
+
+      if (!error) {
+        await refreshFolders()
+      } else {
+        alert(`Error deleting folder: ${error.message}`)
+      }
+    } catch (err) {
+      console.error('Error deleting folder:', err)
+    }
+  }
 
   // Filter folders based on search query
   const filteredFolders = folders.filter((f) =>
@@ -58,8 +82,17 @@ export default function DashboardPage() {
               className="group cursor-pointer rounded-xl border border-border-default bg-bg-card overflow-hidden hover:border-text-secondary hover:shadow-[0_4px_16px_rgba(0,0,0,0.12)] transition-all flex flex-col"
             >
               {/* Folder Icon Header Area */}
-              <div className="h-[60px] bg-bg-elevated flex items-center justify-center border-b border-border-subtle group-hover:bg-border-default transition-colors">
+              <div className="relative h-[60px] bg-bg-elevated flex items-center justify-center border-b border-border-subtle group-hover:bg-border-default transition-colors">
                 <FolderIcon />
+                
+                {/* Hover Delete Button */}
+                <button
+                  onClick={(e) => handleDeleteFolderCard(folder.id, folder.name, e)}
+                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded bg-bg-surface hover:bg-destructive hover:text-white border border-border-default text-text-muted hover:border-destructive shadow-sm"
+                  title="Delete Folder"
+                >
+                  <Trash2 size={13} />
+                </button>
               </div>
               
               {/* Folder Details */}

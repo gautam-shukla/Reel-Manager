@@ -281,7 +281,7 @@ export default function RecycleBinPage() {
                       {reel.thumbnail_url ? (
                         /* eslint-disable-next-line @next/next/no-img-element */
                         <img
-                          src={reel.thumbnail_url}
+                          src={`/api/proxy-image?url=${encodeURIComponent(reel.thumbnail_url)}`}
                           alt="Reel thumbnail"
                           className="w-full h-full object-cover grayscale opacity-80"
                         />
