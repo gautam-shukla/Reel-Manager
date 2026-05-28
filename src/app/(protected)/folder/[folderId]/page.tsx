@@ -24,6 +24,8 @@ export default function FolderPage() {
   const [folderName, setFolderName] = useState('Loading...')
   const [reels, setReels] = useState<Reel[]>([])
   const [loading, setLoading] = useState(true)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isDeletingFolder, setIsDeletingFolder] = useState(false)
 
   // Add Reel Dialog State
   const [isAddReelOpen, setIsAddReelOpen] = useState(false)
@@ -149,9 +151,14 @@ export default function FolderPage() {
   }
 
   // Handle Delete Folder
-  const handleDeleteFolder = async () => {
-    const confirmDelete = window.confirm(`Are you sure you want to delete the folder "${folderName}" and all the reels inside it? This action cannot be undone.`)
-    if (!confirmDelete || !user) return
+  const handleDeleteFolder = () => {
+    setShowDeleteConfirm(true)
+  }
+
+  // Handle Confirmed Delete Folder
+  const handleConfirmDeleteFolder = async () => {
+    if (!user) return
+    setIsDeletingFolder(true)
 
     try {
       const { error } = await supabase
@@ -167,6 +174,9 @@ export default function FolderPage() {
       }
     } catch (err) {
       console.error('Error deleting folder:', err)
+    } finally {
+      setIsDeletingFolder(false)
+      setShowDeleteConfirm(false)
     }
   }
 
@@ -478,6 +488,39 @@ export default function FolderPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Delete Folder Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-overlay backdrop-blur-md">
+          <div className="w-full max-w-[400px] bg-bg-card border border-border-default rounded-xl p-8 shadow-2xl mx-4 text-center">
+            <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 mx-auto mb-5">
+              <Trash2 size={20} />
+            </div>
+            
+            <h3 className="text-lg font-bold text-text-primary mb-2">Delete Folder</h3>
+            <p className="text-xs text-text-secondary mb-6 leading-relaxed">
+              Are you sure you want to delete the folder <span className="text-text-primary font-semibold font-mono bg-bg-elevated px-1.5 py-0.5 rounded border border-border-subtle">&ldquo;{folderName}&rdquo;</span> and all the reels inside it? This action cannot be undone.
+            </p>
+            
+            <div className="flex justify-center gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="btn-ghost px-5 py-2.5 h-[40px] text-xs font-semibold"
+                disabled={isDeletingFolder}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDeleteFolder}
+                className="btn-destructive px-5 py-2.5 h-[40px] text-xs font-semibold !bg-red-500 !text-white hover:!bg-red-600 border-none flex items-center justify-center gap-2"
+                disabled={isDeletingFolder}
+              >
+                {isDeletingFolder ? 'Deleting...' : 'Delete Folder'}
+              </button>
+            </div>
           </div>
         </div>
       )}

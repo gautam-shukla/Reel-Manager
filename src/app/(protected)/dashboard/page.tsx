@@ -1,34 +1,46 @@
 'use client'
 
+import { useState } from 'react'
 import { useApp } from '@/context/AppContext'
 import { useRouter } from 'next/navigation'
 import { FolderPlus, FolderOpen, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 export default function DashboardPage() {
-  const { folders, searchQuery, setIsAddFolderOpen, refreshFolders } = useApp()
+  const { folders, searchQuery, setIsAddFolderOpen, refreshFolders, user } = useApp()
   const router = useRouter()
   const supabase = createClient()
 
-  // Handle Delete Folder from Card
-  const handleDeleteFolderCard = async (folderId: string, folderName: string, e: React.MouseEvent) => {
+  const [folderToDelete, setFolderToDelete] = useState<{ id: string; name: string } | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  // Trigger modal open
+  const handleDeleteFolderCard = (folderId: string, folderName: string, e: React.MouseEvent) => {
     e.stopPropagation() // Prevent navigating to the folder view
-    const confirmDelete = window.confirm(`Are you sure you want to delete the folder "${folderName}" and all the reels inside it? This action cannot be undone.`)
-    if (!confirmDelete) return
+    setFolderToDelete({ id: folderId, name: folderName })
+  }
+
+  // Handle Confirmed Delete
+  const handleConfirmDeleteFolder = async () => {
+    if (!folderToDelete || !user) return
+    setIsDeleting(true)
 
     try {
       const { error } = await supabase
         .from('folders')
         .delete()
-        .eq('id', folderId)
+        .eq('id', folderToDelete.id)
 
       if (!error) {
         await refreshFolders()
+        setFolderToDelete(null)
       } else {
         alert(`Error deleting folder: ${error.message}`)
       }
     } catch (err) {
       console.error('Error deleting folder:', err)
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -106,6 +118,38 @@ export default function DashboardPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+      {/* Custom Confirmation Modal */}
+      {folderToDelete && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-overlay backdrop-blur-md">
+          <div className="w-full max-w-[400px] bg-bg-card border border-border-default rounded-xl p-8 shadow-2xl mx-4 text-center">
+            <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 mx-auto mb-5">
+              <Trash2 size={20} />
+            </div>
+            
+            <h3 className="text-lg font-bold text-text-primary mb-2">Delete Folder</h3>
+            <p className="text-xs text-text-secondary mb-6 leading-relaxed">
+              Are you sure you want to delete the folder <span className="text-text-primary font-semibold font-mono bg-bg-elevated px-1.5 py-0.5 rounded border border-border-subtle">&ldquo;{folderToDelete.name}&rdquo;</span> and all the reels inside it? This action cannot be undone.
+            </p>
+            
+            <div className="flex justify-center gap-3">
+              <button
+                onClick={() => setFolderToDelete(null)}
+                className="btn-ghost px-5 py-2.5 h-[40px] text-xs font-semibold"
+                disabled={isDeleting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDeleteFolder}
+                className="btn-destructive px-5 py-2.5 h-[40px] text-xs font-semibold !bg-red-500 !text-white hover:!bg-red-600 border-none flex items-center justify-center gap-2"
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Deleting...' : 'Delete Folder'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

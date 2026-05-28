@@ -23,6 +23,7 @@ export default function RecycleBinPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [restoring, setRestoring] = useState(false)
   const [emptying, setEmptying] = useState(false)
+  const [showEmptyConfirm, setShowEmptyConfirm] = useState(false)
 
   // Fetch soft-deleted reels (within 7 days)
   const fetchDeletedReels = useCallback(async () => {
@@ -128,10 +129,14 @@ export default function RecycleBinPage() {
     }
   }
 
-  // Empty Bin (Hard delete)
-  const handleEmptyBin = async () => {
-    const confirmEmpty = window.confirm('Are you sure you want to permanently delete all items in the Recycle Bin? This action cannot be undone.')
-    if (!confirmEmpty || !user) return
+  // Empty Bin (Trigger Modal)
+  const handleEmptyBin = () => {
+    setShowEmptyConfirm(true)
+  }
+
+  // Confirm Empty Bin (Hard delete)
+  const handleConfirmEmptyBin = async () => {
+    if (!user) return
     
     setEmptying(true)
     try {
@@ -145,6 +150,7 @@ export default function RecycleBinPage() {
         setReels([])
         setSelectedIds([])
         await refreshFolders()
+        setShowEmptyConfirm(false)
       }
     } catch (err) {
       console.error('Error emptying bin:', err)
@@ -318,6 +324,39 @@ export default function RecycleBinPage() {
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Custom Empty Bin Confirmation Modal */}
+      {showEmptyConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-overlay backdrop-blur-md">
+          <div className="w-full max-w-[400px] bg-bg-card border border-border-default rounded-xl p-8 shadow-2xl mx-4 text-center">
+            <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 mx-auto mb-5">
+              <Trash2 size={20} />
+            </div>
+            
+            <h3 className="text-lg font-bold text-text-primary mb-2">Empty Recycle Bin</h3>
+            <p className="text-xs text-text-secondary mb-6 leading-relaxed">
+              Are you sure you want to permanently delete all items in the Recycle Bin? This action cannot be undone.
+            </p>
+            
+            <div className="flex justify-center gap-3">
+              <button
+                onClick={() => setShowEmptyConfirm(false)}
+                className="btn-ghost px-5 py-2.5 h-[40px] text-xs font-semibold"
+                disabled={emptying}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmEmptyBin}
+                className="btn-destructive px-5 py-2.5 h-[40px] text-xs font-semibold !bg-red-500 !text-white hover:!bg-red-600 border-none flex items-center justify-center gap-2"
+                disabled={emptying}
+              >
+                {emptying ? 'Emptying...' : 'Empty Bin'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
