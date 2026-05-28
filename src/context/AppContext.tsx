@@ -77,7 +77,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data: foldersData } = await supabase
         .from('folders')
-        .select('*, reels(count)')
+        .select('*, reels:reels!reels_folder_id_fkey(count)')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
