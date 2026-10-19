@@ -4,6 +4,8 @@ import { ContextMenuProvider } from 'contexts/ContextMenuContext'
 import ContextMenu from 'components/ContextMenu'
 import Layout from 'components/Layout'
 import Login from 'pages/Login'
+import ResetPassword from 'pages/ResetPassword'
+import PrivacyPolicy from 'pages/PrivacyPolicy'
 import Dashboard from 'pages/Dashboard'
 import Folder from 'pages/Folder'
 import RecycleBin from 'pages/RecycleBin'
@@ -51,6 +53,14 @@ function AppContent() {
             <Login />
           </PublicRoute>
         }
+      />
+      <Route
+        path={ROUTES.RESET_PASSWORD}
+        element={<ResetPassword />}
+      />
+      <Route
+        path={ROUTES.PRIVACY_POLICY}
+        element={<PrivacyPolicy />}
       />
       <Route
         path={ROUTES.ROOT}

@@ -29,6 +29,7 @@ interface AppContextType {
   loading: boolean
   isAddFolderOpen: boolean
   setIsAddFolderOpen: (open: boolean) => void
+  refreshUser: () => Promise<void>
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined)
@@ -201,7 +202,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         user,
         loading,
         isAddFolderOpen,
-        setIsAddFolderOpen
+        setIsAddFolderOpen,
+        refreshUser: fetchUser
       }}
     >
       {children}

@@ -34,8 +34,14 @@ export default defineConfig(({ mode }) => {
       port: 3000,
       configureServer(server) {
         server.middlewares.use(async (req, res, next) => {
-          const urlObj = new URL(req.url || '', `http://${req.headers.host}`)
-          const pathname = urlObj.pathname
+          let pathname = ''
+          let urlObj: URL | null = null
+          try {
+            urlObj = new URL(req.url || '', `http://${req.headers.host || 'localhost'}`)
+            pathname = urlObj.pathname
+          } catch {
+            return next()
+          }
 
           // 1. GET /api/proxy-image?url=...
           if (pathname === '/api/proxy-image' && req.method === 'GET') {
@@ -102,7 +108,52 @@ export default defineConfig(({ mode }) => {
                 'https://images.unsplash.com/photo-1604871000636-074fa5117945?q=80&w=600&auto=format&fit=crop'
               ]
 
-              // 1. Try to fetch using Python script (instaloader)
+              // 1. Try to fetch using Instagram Basic Display API if we have a user token
+              const rawToken = env.NEXT_PUBLIC_INSTAGRAM_OEMBED_TOKEN || env.INSTAGRAM_OEMBED_TOKEN
+              const userToken = rawToken?.includes('|') ? rawToken.split('|')[1] : rawToken
+
+              if (userToken && userToken.startsWith('IG')) {
+                try {
+                  const extractShortcode = (u: string) => {
+                    const pattern = /\/(?:reels?|p|tv|share\/reel)\/([A-Za-z0-9_-]+)/
+                    const match = u.match(pattern)
+                    return match ? match[1] : null
+                  }
+                  const shortcode = extractShortcode(url)
+                  
+                  if (shortcode) {
+                    console.log(`[Reel Manager] Querying Instagram Graph API for shortcode: ${shortcode}`)
+                    const graphUrl = `https://graph.instagram.com/me/media?fields=id,caption,media_type,media_url,username,thumbnail_url,permalink&access_token=${userToken}`
+                    const graphRes = await fetch(graphUrl)
+                    if (graphRes.ok) {
+                      const graphData = await graphRes.json()
+                      const matchingMedia = graphData.data?.find((item: any) => {
+                        return item.permalink?.includes(shortcode) || item.id === shortcode
+                      })
+
+                      if (matchingMedia) {
+                        console.log('[Reel Manager] Found matching media in Graph API!')
+                        res.statusCode = 200
+                        res.setHeader('Content-Type', 'application/json')
+                        res.end(JSON.stringify({ 
+                          thumbnail: matchingMedia.thumbnail_url || matchingMedia.media_url,
+                          username: matchingMedia.username || 'instagram_user',
+                          caption: matchingMedia.caption || ''
+                        }))
+                        return
+                      } else {
+                        console.log('[Reel Manager] Media not found in User Media history.')
+                      }
+                    } else {
+                      console.error('[Reel Manager] Graph API returned status:', graphRes.status)
+                    }
+                  }
+                } catch (graphErr) {
+                  console.error('[Reel Manager] Error querying Instagram Graph API:', graphErr)
+                }
+              }
+
+              // 2. Try to fetch using Python script (instaloader)
               const projectRoot = process.cwd()
               const scriptPath = path.resolve(projectRoot, './scripts/get_thumbnail.py')
               const localPython = process.platform === 'win32'
@@ -113,8 +164,11 @@ export default defineConfig(({ mode }) => {
               console.log(`[Reel Manager] Using Python executable: ${pythonExecutable}`)
               console.log(`[Reel Manager] Executing script: ${scriptPath} with URL: ${url}`)
 
-              const pythonResult = await new Promise<{ thumbnail_url: string; username: string } | null>((resolve) => {
-                execFile(pythonExecutable, [scriptPath, url], { timeout: 25000 }, (error, stdout, stderr) => {
+              const pythonResult = await new Promise<{ thumbnail_url: string; username: string; caption?: string } | null>((resolve) => {
+                execFile(pythonExecutable, [scriptPath, url], { 
+                  timeout: 25000,
+                  env: { ...process.env, ...env }
+                }, (error, stdout, stderr) => {
                   if (error) {
                     console.error('Error running python get_thumbnail script:', error)
                     console.error('Script stdout:', stdout)
@@ -145,7 +199,8 @@ export default defineConfig(({ mode }) => {
                 res.setHeader('Content-Type', 'application/json')
                 res.end(JSON.stringify({ 
                   thumbnail: pythonResult.thumbnail_url,
-                  username: pythonResult.username
+                  username: pythonResult.username,
+                  caption: pythonResult.caption || ''
                 }))
                 return
               }
@@ -161,7 +216,11 @@ export default defineConfig(({ mode }) => {
                   if (data.thumbnail_url) {
                     res.statusCode = 200
                     res.setHeader('Content-Type', 'application/json')
-                    res.end(JSON.stringify({ thumbnail: data.thumbnail_url }))
+                    res.end(JSON.stringify({ 
+                      thumbnail: data.thumbnail_url,
+                      username: data.author_name || 'instagram_user',
+                      caption: data.title || ''
+                    }))
                     return
                   }
                 }

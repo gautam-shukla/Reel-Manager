@@ -10,7 +10,9 @@ ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 
 -- 2. Add updated_at to reels table
 ALTER TABLE public.reels
-ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW(),
+ADD COLUMN IF NOT EXISTS instagram_username TEXT,
+ADD COLUMN IF NOT EXISTS instagram_caption TEXT;
 
 -- 3. Set default values for existing records
 UPDATE public.folders SET is_deleted = FALSE WHERE is_deleted IS NULL;

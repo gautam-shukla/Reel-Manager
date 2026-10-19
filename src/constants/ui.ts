@@ -28,6 +28,13 @@ export const UI = {
     CREATE_AN_ACCOUNT: 'Create an account',
     OR: 'or',
     FOOTER_NOTE: 'Built for creators. Powered by Supabase.',
+    RESET_PASSWORD: 'Reset Password',
+    UPDATE_PASSWORD: 'Update Password',
+    NEW_PASSWORD: 'New Password',
+    CONFIRM_PASSWORD: 'Confirm Password',
+    SEND_RESET_LINK: 'Send Reset Link',
+    FORGOT_PASSWORD_TITLE: 'Forgot Password',
+    ENTER_EMAIL_RESET: 'Enter your email to receive a password reset link.',
     FOLDER_NAME: 'Folder Name',
     SUBFOLDER_NAME: 'Subfolder Name',
     REEL_URL: 'Instagram Reel URL',
@@ -107,7 +114,8 @@ export const UI = {
     DOUBLE_CLICK_EDIT: 'Double-click or right-click to edit note...',
     USERNAME_EXP: 'johndoe',
     EMAIL_EXP: 'you@example.com',
-    PASSWORD_EXP: '••••••••'
+    PASSWORD_EXP: '••••••••',
+    CONFIRM_PASSWORD_EXP: '••••••••'
   },
   ERRORS: {
     PASSWORD_RESET_NOT_CONFIGURED: 'Password reset is not configured.',
@@ -116,10 +124,13 @@ export const UI = {
     BATCH_RESTORE_OMITTED: 'Omitted some reels because their parent folders are deleted. Please restore the folders first.',
     NO_USER: 'User session not found.',
     SOMETHING_WENT_WRONG: 'Something went wrong',
+    PASSWORD_MISMATCH: 'Passwords do not match.',
     DELETE_ERROR: 'Error deleting folder: ',
     DELETE_SUBFOLDER_ERROR: 'Error deleting subfolder: '
   },
   MESSAGES: {
-    SIGN_UP_SUCCESS: 'Check your email to confirm your account (or try signing in if confirmations are disabled).'
+    SIGN_UP_SUCCESS: 'Check your email to confirm your account (or try signing in if confirmations are disabled).',
+    RESET_LINK_SENT: 'Password reset link sent! Check your email.',
+    PASSWORD_UPDATED: 'Password successfully updated! You can now log in.'
   }
 } as const

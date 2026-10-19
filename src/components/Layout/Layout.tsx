@@ -5,7 +5,49 @@ import { createClient } from 'lib/supabase/client'
 import { ROUTES } from 'constants/routes'
 import { UI } from 'constants/ui'
 import { CONFIG } from 'constants/config'
-import { Menu, Search, Plus, Trash2, Folder as FolderIcon, LogOut, Sun, Moon, Loader2 } from 'lucide-react'
+import { Menu, Search, Plus, Trash2, Folder as FolderIcon, LogOut, Sun, Moon, Loader2, Shield } from 'lucide-react'
+import { logger } from 'utils/logger'
+
+const resizeImage = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.readAsDataURL(file)
+    reader.onload = (event) => {
+      const img = new Image()
+      img.src = event.target?.result as string
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        const max_size = 96
+        const width = img.width
+        const height = img.height
+        
+        const size = Math.min(width, height)
+        canvas.width = max_size
+        canvas.height = max_size
+        
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          ctx.drawImage(
+            img,
+            (width - size) / 2,
+            (height - size) / 2,
+            size,
+            size,
+            0,
+            0,
+            max_size,
+            max_size
+          )
+          resolve(canvas.toDataURL('image/jpeg', 0.7))
+        } else {
+          reject(new Error('Canvas context not available'))
+        }
+      }
+      img.onerror = (err) => reject(err)
+    }
+    reader.onerror = (err) => reject(err)
+  })
+}
 
 export default function Layout() {
   const {
@@ -20,12 +62,26 @@ export default function Layout() {
     user,
     loading,
     isAddFolderOpen,
-    setIsAddFolderOpen
+    setIsAddFolderOpen,
+    refreshUser
   } = useApp()
 
   const [newFolderName, setNewFolderName] = useState('')
   const [folderSubmitting, setFolderSubmitting] = useState(false)
   const [folderError, setFolderError] = useState<string | null>(null)
+
+  // Account settings states
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [newEmail, setNewEmail] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+  const [settingsLoading, setSettingsLoading] = useState(false)
+  const [settingsError, setSettingsError] = useState<string | null>(null)
+  const [settingsSuccess, setSettingsSuccess] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<'profile' | 'email' | 'password'>('profile')
 
   const navigate = useNavigate()
   const location = useLocation()
@@ -36,6 +92,110 @@ export default function Layout() {
   const handleLogout = async () => {
     await supabase.auth.signOut()
     navigate(ROUTES.LOGIN)
+  }
+
+  // Open settings panel and initialize values
+  const openSettings = () => {
+    setNewName(user?.user_metadata?.username || user?.email?.split('@')[0] || '')
+    setNewEmail(user?.email || '')
+    setNewPassword('')
+    setConfirmPassword('')
+    setAvatarPreview(user?.user_metadata?.avatar_url || null)
+    setSettingsError(null)
+    setSettingsSuccess(null)
+    setActiveTab('profile')
+    setIsSettingsOpen(true)
+  }
+
+  // Update profile handler
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newName.trim() || !user) return
+    
+    setSettingsLoading(true)
+    setSettingsError(null)
+    setSettingsSuccess(null)
+    
+    try {
+      const { error: authError } = await supabase.auth.updateUser({
+        data: { 
+          username: newName.trim(),
+          avatar_url: avatarPreview
+        }
+      })
+      if (authError) throw authError
+
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ username: newName.trim() })
+        .eq('id', user.id)
+      if (profileError) throw profileError
+
+      setSettingsSuccess('Profile settings updated successfully!')
+      await refreshUser()
+    } catch (err: any) {
+      setSettingsError(err.message || 'Failed to update profile settings.')
+    } finally {
+      setSettingsLoading(false)
+    }
+  }
+
+  // Update email handler
+  const handleUpdateEmail = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newEmail.trim() || !user) return
+    if (newEmail.trim() === user.email) {
+      setSettingsError('New email is the same as the current email.')
+      return
+    }
+
+    setSettingsLoading(true)
+    setSettingsError(null)
+    setSettingsSuccess(null)
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        email: newEmail.trim()
+      })
+      if (error) throw error
+
+      setSettingsSuccess('Verification links sent to both your old and new email addresses. Please verify to complete the change.')
+      await refreshUser()
+    } catch (err: any) {
+      setSettingsError(err.message || 'Failed to update email address.')
+    } finally {
+      setSettingsLoading(false)
+    }
+  }
+
+  // Update password handler
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newPassword || !user) return
+
+    if (newPassword !== confirmPassword) {
+      setSettingsError(UI.ERRORS.PASSWORD_MISMATCH)
+      return
+    }
+
+    setSettingsLoading(true)
+    setSettingsError(null)
+    setSettingsSuccess(null)
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      })
+      if (error) throw error
+
+      setSettingsSuccess('Password updated successfully!')
+      setNewPassword('')
+      setConfirmPassword('')
+    } catch (err: any) {
+      setSettingsError(err.message || 'Failed to update password.')
+    } finally {
+      setSettingsLoading(false)
+    }
   }
 
   // Create folder
@@ -108,9 +268,17 @@ export default function Layout() {
       >
         {/* User Block */}
         <div className="flex items-center gap-3 px-4 py-5">
-          <div className="w-8 h-8 rounded-full bg-bg-elevated border border-border-default flex items-center justify-center font-bold text-sm text-text-primary">
-            {userInitials}
-          </div>
+          {user.user_metadata?.avatar_url ? (
+            <img
+              src={user.user_metadata.avatar_url}
+              alt="Avatar"
+              className="w-8 h-8 rounded-full object-cover border border-border-default select-none"
+            />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-bg-elevated border border-border-default flex items-center justify-center font-bold text-sm text-text-primary select-none">
+              {userInitials}
+            </div>
+          )}
           <span className="font-bold text-sm text-text-primary truncate">{displayUsername}</span>
         </div>
 
@@ -210,11 +378,18 @@ export default function Layout() {
             </button>
           </div>
 
-          {/* Logout Button */}
-          <div className="px-4 mt-2">
+          {/* Bottom Actions */}
+          <div className="mt-auto px-4 pt-3 pb-1 border-t border-border-default/50 space-y-1.5">
+            <button
+              onClick={() => navigate(ROUTES.PRIVACY_POLICY)}
+              className="flex w-full items-center gap-2 text-xs font-medium text-text-muted hover:text-text-primary transition-colors py-1 cursor-pointer bg-transparent border-none"
+            >
+              <Shield size={14} />
+              Privacy Policy
+            </button>
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 text-xs font-medium text-text-muted hover:text-destructive transition-colors py-2 cursor-pointer bg-transparent border-none"
+              className="flex w-full items-center gap-2 text-xs font-medium text-text-muted hover:text-destructive transition-colors py-1 cursor-pointer bg-transparent border-none"
             >
               <LogOut size={14} />
               {UI.LABELS.LOGOUT}
@@ -253,9 +428,53 @@ export default function Layout() {
             </div>
           </div>
 
-          {/* User Initials Avatar */}
-          <div className="w-8 h-8 rounded-full bg-bg-elevated border border-border-default flex items-center justify-center font-bold text-xs text-text-secondary select-none">
-            {userInitials}
+          {/* User Initials Avatar with Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              className="w-8 h-8 rounded-full overflow-hidden bg-bg-elevated border border-border-default flex items-center justify-center font-bold text-xs text-text-secondary hover:text-text-primary transition-colors select-none cursor-pointer focus:outline-none"
+            >
+              {user.user_metadata?.avatar_url ? (
+                <img
+                  src={user.user_metadata.avatar_url}
+                  alt="Avatar"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                userInitials
+              )}
+            </button>
+
+            {isDropdownOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40 bg-transparent"
+                  onClick={() => setIsDropdownOpen(false)}
+                />
+                
+                <div className="absolute right-0 mt-2 w-48 bg-bg-card border border-border-default rounded-lg shadow-lg py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                  <button
+                    onClick={() => {
+                      setIsDropdownOpen(false)
+                      openSettings()
+                    }}
+                    className="w-full text-left px-4 py-2 text-xs font-semibold text-text-primary hover:bg-bg-elevated transition-colors cursor-pointer"
+                  >
+                    Account Settings
+                  </button>
+                  <div className="h-[1px] bg-border-default my-1" />
+                  <button
+                    onClick={() => {
+                      setIsDropdownOpen(false)
+                      handleLogout()
+                    }}
+                    className="w-full text-left px-4 py-2 text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+                  >
+                    {UI.LABELS.LOGOUT}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </header>
 
@@ -319,6 +538,243 @@ export default function Layout() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Account Settings Dialog Modal */}
+      {isSettingsOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-overlay backdrop-blur-md transition-opacity duration-200">
+          <div className="w-full max-w-[450px] bg-bg-card border border-border-default rounded-xl p-8 shadow-2xl mx-4">
+            <h3 className="text-base font-bold text-text-primary mb-6 font-mono tracking-wide uppercase">Account Settings</h3>
+            
+            {/* Tabs Header */}
+            <div className="flex border-b border-border-default mb-6">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('profile')
+                  setSettingsError(null)
+                  setSettingsSuccess(null)
+                }}
+                className={`flex-1 pb-2.5 text-xs font-semibold tracking-wider uppercase font-mono text-center border-b-2 cursor-pointer transition-all ${
+                  activeTab === 'profile'
+                    ? 'border-accent text-text-primary'
+                    : 'border-transparent text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                Profile
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('email')
+                  setSettingsError(null)
+                  setSettingsSuccess(null)
+                }}
+                className={`flex-1 pb-2.5 text-xs font-semibold tracking-wider uppercase font-mono text-center border-b-2 cursor-pointer transition-all ${
+                  activeTab === 'email'
+                    ? 'border-accent text-text-primary'
+                    : 'border-transparent text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                Email
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('password')
+                  setSettingsError(null)
+                  setSettingsSuccess(null)
+                }}
+                className={`flex-1 pb-2.5 text-xs font-semibold tracking-wider uppercase font-mono text-center border-b-2 cursor-pointer transition-all ${
+                  activeTab === 'password'
+                    ? 'border-accent text-text-primary'
+                    : 'border-transparent text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                Password
+              </button>
+            </div>
+
+            {settingsError && (
+              <div className="p-3 mb-4 text-xs border border-destructive/20 bg-destructive/10 text-destructive rounded-md">
+                {settingsError}
+              </div>
+            )}
+
+            {settingsSuccess && (
+              <div className="p-3 mb-4 text-xs border border-green-500/20 bg-green-500/10 text-green-400 rounded-md">
+                {settingsSuccess}
+              </div>
+            )}
+
+            {activeTab === 'profile' && (
+              <form onSubmit={handleUpdateProfile} className="space-y-6">
+                {/* Profile Photo Upload Section */}
+                <div className="flex flex-col items-center gap-4 pb-2">
+                  <div className="relative group">
+                    <div className="w-20 h-20 rounded-full overflow-hidden bg-bg-elevated border border-border-default flex items-center justify-center font-bold text-2xl text-text-secondary select-none">
+                      {avatarPreview ? (
+                        <img
+                          src={avatarPreview}
+                          alt="Avatar Preview"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        userInitials
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <label className="btn-ghost py-1.5 px-3 text-xs cursor-pointer select-none">
+                      Upload Photo
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0]
+                          if (file) {
+                            try {
+                              const resized = await resizeImage(file)
+                              setAvatarPreview(resized)
+                            } catch (err) {
+                              logger.error('Error resizing avatar:', err)
+                              setSettingsError('Failed to process image.')
+                            }
+                          }
+                        }}
+                        className="hidden"
+                      />
+                    </label>
+                    {avatarPreview && (
+                      <button
+                        type="button"
+                        onClick={() => setAvatarPreview(null)}
+                        className="btn-destructive py-1.5 px-3 text-xs"
+                      >
+                        Remove Photo
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-mono tracking-widest text-text-muted uppercase mb-2">
+                    Name / Username
+                  </label>
+                  <input
+                    type="text"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    className="w-full bg-bg-elevated border border-border-default text-text-primary rounded-md py-2.5 px-3.5 text-sm focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/10 transition-colors placeholder:text-text-muted"
+                    required
+                  />
+                </div>
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsSettingsOpen(false)}
+                    className="btn-ghost"
+                    disabled={settingsLoading}
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    disabled={settingsLoading}
+                  >
+                    {settingsLoading ? <Loader2 className="animate-spin mr-2" size={16} /> : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {activeTab === 'email' && (
+              <form onSubmit={handleUpdateEmail} className="space-y-6">
+                <div>
+                  <label className="block text-xs font-mono tracking-widest text-text-muted uppercase mb-2">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    className="w-full bg-bg-elevated border border-border-default text-text-primary rounded-md py-2.5 px-3.5 text-sm focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/10 transition-colors placeholder:text-text-muted"
+                    required
+                  />
+                </div>
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsSettingsOpen(false)}
+                    className="btn-ghost"
+                    disabled={settingsLoading}
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    disabled={settingsLoading}
+                  >
+                    {settingsLoading ? <Loader2 className="animate-spin mr-2" size={16} /> : 'Update Email'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {activeTab === 'password' && (
+              <form onSubmit={handleUpdatePassword} className="space-y-6">
+                <div>
+                  <label className="block text-xs font-mono tracking-widest text-text-muted uppercase mb-2">
+                    New Password
+                  </label>
+                  <input
+                    type="password"
+                    placeholder="••••••••"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full bg-bg-elevated border border-border-default text-text-primary rounded-md py-2.5 px-3.5 text-sm focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/10 transition-colors placeholder:text-text-muted"
+                    required
+                    minLength={6}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-mono tracking-widest text-text-muted uppercase mb-2">
+                    Confirm New Password
+                  </label>
+                  <input
+                    type="password"
+                    placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full bg-bg-elevated border border-border-default text-text-primary rounded-md py-2.5 px-3.5 text-sm focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/10 transition-colors placeholder:text-text-muted"
+                    required
+                    minLength={6}
+                  />
+                </div>
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsSettingsOpen(false)}
+                    className="btn-ghost"
+                    disabled={settingsLoading}
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    disabled={settingsLoading}
+                  >
+                    {settingsLoading ? <Loader2 className="animate-spin mr-2" size={16} /> : 'Update Password'}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

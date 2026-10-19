@@ -12,6 +12,7 @@ export default function Login() {
   const [username, setUsername] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isSignUp, setIsSignUp] = useState(false)
+  const [isForgotPassword, setIsForgotPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
@@ -26,7 +27,18 @@ export default function Login() {
     setMessage(null)
 
     try {
-      if (isSignUp) {
+      if (isForgotPassword) {
+        // Forgot Password Flow
+        const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}${ROUTES.RESET_PASSWORD}`
+        })
+
+        if (resetError) {
+          setError(resetError.message)
+        } else {
+          setMessage(UI.MESSAGES.RESET_LINK_SENT)
+        }
+      } else if (isSignUp) {
         // Sign Up Flow
         const { error: signUpError } = await supabase.auth.signUp({
           email,
@@ -84,7 +96,7 @@ export default function Login() {
             {UI.TITLES.APP_NAME}
           </p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-text-primary">
-            {UI.TITLES.SUBTITLE}
+            {isForgotPassword ? UI.LABELS.FORGOT_PASSWORD_TITLE : isSignUp ? UI.LABELS.CREATE_AN_ACCOUNT : UI.TITLES.SUBTITLE}
           </h1>
         </div>
 
@@ -103,7 +115,13 @@ export default function Login() {
               </div>
             )}
 
-            {isSignUp && (
+            {isForgotPassword && (
+              <p className="text-xs text-text-secondary mb-2 leading-relaxed">
+                {UI.LABELS.ENTER_EMAIL_RESET}
+              </p>
+            )}
+
+            {isSignUp && !isForgotPassword && (
               <div>
                 <label className="block text-xs font-mono tracking-widest text-text-muted uppercase mb-2">
                   {UI.LABELS.USERNAME}
@@ -133,40 +151,46 @@ export default function Login() {
               />
             </div>
 
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <label className="block text-xs font-mono tracking-widest text-text-muted uppercase">
-                  {UI.LABELS.PASSWORD}
-                </label>
-                {!isSignUp && (
+            {!isForgotPassword && (
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-xs font-mono tracking-widest text-text-muted uppercase">
+                    {UI.LABELS.PASSWORD}
+                  </label>
+                  {!isSignUp && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsForgotPassword(true)
+                        setError(null)
+                        setMessage(null)
+                      }}
+                      className="text-xs text-text-muted hover:text-text-secondary transition-colors cursor-pointer bg-transparent border-none"
+                    >
+                      {UI.LABELS.FORGOT_PASSWORD}
+                    </button>
+                  )}
+                </div>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder={UI.PLACEHOLDERS.PASSWORD_EXP}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-bg-elevated border border-border-default text-text-primary rounded-md py-2.5 pl-3.5 pr-10 text-sm focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/10 transition-colors placeholder:text-text-muted"
+                    required={!isForgotPassword}
+                    minLength={6}
+                  />
                   <button
                     type="button"
-                    onClick={() => setMessage(UI.ERRORS.PASSWORD_RESET_NOT_CONFIGURED)}
-                    className="text-xs text-text-muted hover:text-text-secondary transition-colors cursor-pointer bg-transparent border-none"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-text-muted hover:text-text-secondary transition-colors cursor-pointer bg-transparent border-none"
                   >
-                    {UI.LABELS.FORGOT_PASSWORD}
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
-                )}
+                </div>
               </div>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder={UI.PLACEHOLDERS.PASSWORD_EXP}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-bg-elevated border border-border-default text-text-primary rounded-md py-2.5 pl-3.5 pr-10 text-sm focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/10 transition-colors placeholder:text-text-muted"
-                  required
-                  minLength={6}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-text-muted hover:text-text-secondary transition-colors cursor-pointer bg-transparent border-none"
-                >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-            </div>
+            )}
 
             <button
               type="submit"
@@ -175,6 +199,8 @@ export default function Login() {
             >
               {loading ? (
                 <Loader2 className="animate-spin mr-2" size={16} />
+              ) : isForgotPassword ? (
+                UI.LABELS.SEND_RESET_LINK
               ) : isSignUp ? (
                 UI.LABELS.CREATE_ACCOUNT
               ) : (
@@ -188,24 +214,46 @@ export default function Login() {
               <div className="h-[1px] bg-border-default flex-1" />
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                setIsSignUp(!isSignUp)
-                setError(null)
-                setMessage(null)
-              }}
-              className="w-full btn-ghost h-[40px] cursor-pointer"
-            >
-              {isSignUp ? UI.LABELS.BACK_TO_SIGN_IN : UI.LABELS.CREATE_AN_ACCOUNT}
-            </button>
+            {isForgotPassword ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsForgotPassword(false)
+                  setError(null)
+                  setMessage(null)
+                }}
+                className="w-full btn-ghost h-[40px] cursor-pointer"
+              >
+                {UI.LABELS.BACK_TO_SIGN_IN}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSignUp(!isSignUp)
+                  setError(null)
+                  setMessage(null)
+                }}
+                className="w-full btn-ghost h-[40px] cursor-pointer"
+              >
+                {isSignUp ? UI.LABELS.BACK_TO_SIGN_IN : UI.LABELS.CREATE_AN_ACCOUNT}
+              </button>
+            )}
           </form>
         </div>
 
         {/* Footer */}
-        <p className="mt-8 text-[11px] text-text-muted text-center tracking-wide select-none">
-          {UI.LABELS.FOOTER_NOTE}
-        </p>
+        <div className="mt-8 flex flex-col items-center gap-1.5 select-none">
+          <p className="text-[11px] text-text-muted text-center tracking-wide">
+            {UI.LABELS.FOOTER_NOTE}
+          </p>
+          <button
+            onClick={() => navigate(ROUTES.PRIVACY_POLICY)}
+            className="text-[11px] text-text-muted hover:text-text-secondary hover:underline cursor-pointer bg-transparent border-none p-0 transition-colors font-semibold"
+          >
+            Privacy Policy
+          </button>
+        </div>
       </div>
     </div>
   )

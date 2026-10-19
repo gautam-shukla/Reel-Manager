@@ -14,6 +14,8 @@ interface Reel {
   instagram_url: string
   thumbnail_url: string | null
   note: string
+  instagram_username?: string | null
+  instagram_caption?: string | null
   created_at: string
   updated_at?: string
 }
@@ -55,10 +57,25 @@ export default function Folder() {
   const [isRenamingFolder, setIsRenamingFolder] = useState(false)
   const [renameFolderError, setRenameFolderError] = useState<string | null>(null)
 
-  const [reelToRename, setReelToRename] = useState<{ id: string; note: string } | null>(null)
-  const [renameReelNoteValue, setRenameReelNoteValue] = useState('')
-  const [isRenamingReel, setIsRenamingReel] = useState(false)
-  const [renameReelError, setRenameReelError] = useState<string | null>(null)
+  const [reelToEdit, setReelToEdit] = useState<{
+    id: string
+    note: string
+    instagram_username: string | null
+    instagram_caption: string | null
+    thumbnail_url: string | null
+  } | null>(null)
+  const [editReelNoteValue, setEditReelNoteValue] = useState('')
+  const [editReelUsernameValue, setEditReelUsernameValue] = useState('')
+  const [editReelCaptionValue, setEditReelCaptionValue] = useState('')
+  const [editReelThumbnailValue, setEditReelThumbnailValue] = useState('')
+  const [isEditingReel, setIsEditingReel] = useState(false)
+  const [editReelError, setEditReelError] = useState<string | null>(null)
+
+  // Advanced Add Reel inputs
+  const [addReelShowAdvanced, setAddReelShowAdvanced] = useState(false)
+  const [addReelUsername, setAddReelUsername] = useState('')
+  const [addReelCaption, setAddReelCaption] = useState('')
+  const [addReelThumbnail, setAddReelThumbnail] = useState('')
 
   const [folderProperties, setFolderProperties] = useState<any | null>(null)
   const [reelProperties, setReelProperties] = useState<any | null>(null)
@@ -78,7 +95,7 @@ export default function Folder() {
         supabase.from('folders').select('name').eq('id', folderId).single(),
         supabase.from('folders').select('*').eq('parent_id', folderId).eq('is_deleted', false).order('created_at', { ascending: false }),
         supabase.from('reels').select('folder_id').eq('user_id', user.id).eq('is_deleted', false),
-        supabase.from('reels').select('id, instagram_url, thumbnail_url, note, created_at, updated_at').eq('folder_id', folderId).eq('is_deleted', false).order('created_at', { ascending: false })
+        supabase.from('reels').select('id, instagram_url, thumbnail_url, note, instagram_username, instagram_caption, created_at, updated_at').eq('folder_id', folderId).eq('is_deleted', false).order('created_at', { ascending: false })
       ])
 
       setFolderName(folderErr ? 'Folder Not Found' : folder.name)
@@ -151,27 +168,35 @@ export default function Folder() {
 
       let fetchedThumbnail = null
       let fetchedUsername = null
+      let fetchedCaption = null
       if (proxyRes.ok) {
         const proxyData = await proxyRes.json()
         fetchedThumbnail = proxyData.thumbnail
         fetchedUsername = proxyData.username
+        fetchedCaption = proxyData.caption
       }
 
-      const finalNote = reelNote.trim() || (fetchedUsername ? `By @${fetchedUsername}` : '')
+      const finalNote = reelNote.trim()
 
       const { error: dbError } = await supabase.from('reels').insert({
         user_id: user.id,
         folder_id: folderId,
         original_folder_id: folderId,
         instagram_url: reelUrl.trim(),
-        thumbnail_url: fetchedThumbnail,
-        note: finalNote
+        thumbnail_url: addReelThumbnail.trim() || fetchedThumbnail,
+        note: finalNote,
+        instagram_username: addReelUsername.trim() || fetchedUsername,
+        instagram_caption: addReelCaption.trim() || fetchedCaption
       })
 
       if (dbError) throw dbError
 
       setReelUrl('')
       setReelNote('')
+      setAddReelUsername('')
+      setAddReelCaption('')
+      setAddReelThumbnail('')
+      setAddReelShowAdvanced(false)
       setIsAddReelOpen(false)
       await fetchFolderData()
       await refreshFolders()
@@ -296,26 +321,29 @@ export default function Folder() {
     }
   }
 
-  const handleRenameReelSubmit = async (e: React.FormEvent) => {
+  const handleEditReelSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!reelToRename) return
-    setIsRenamingReel(true)
-    setRenameReelError(null)
+    if (!reelToEdit) return
+    setIsEditingReel(true)
+    setEditReelError(null)
 
     try {
       const { error } = await supabase.from('reels').update({
-        note: renameReelNoteValue.trim(),
+        note: editReelNoteValue.trim(),
+        instagram_username: editReelUsernameValue.trim() || null,
+        instagram_caption: editReelCaptionValue.trim() || null,
+        thumbnail_url: editReelThumbnailValue.trim() || null,
         updated_at: new Date().toISOString()
-      }).eq('id', reelToRename.id)
+      }).eq('id', reelToEdit.id)
 
       if (error) throw error
 
-      setReelToRename(null)
+      setReelToEdit(null)
       await fetchFolderData()
     } catch (err: any) {
-      setRenameReelError(err.message || UI.ERRORS.SOMETHING_WENT_WRONG)
+      setEditReelError(err.message || UI.ERRORS.SOMETHING_WENT_WRONG)
     } finally {
-      setIsRenamingReel(false)
+      setIsEditingReel(false)
     }
   }
 
@@ -364,7 +392,20 @@ export default function Folder() {
 
   const handleReelContextMenu = useCallback((e: React.MouseEvent, reel: any) => {
     openMenu(e, [
-      { label: UI.BUTTONS.EDIT_NOTE, icon: <Edit size={14} />, onClick: () => { setReelToRename({ id: reel.id, note: reel.note || '' }); setRenameReelNoteValue(reel.note || ''); setRenameReelError(null) } },
+      { label: 'Edit Details', icon: <Edit size={14} />, onClick: () => {
+        setReelToEdit({
+          id: reel.id,
+          note: reel.note || '',
+          instagram_username: reel.instagram_username || null,
+          instagram_caption: reel.instagram_caption || null,
+          thumbnail_url: reel.thumbnail_url || null
+        })
+        setEditReelNoteValue(reel.note || '')
+        setEditReelUsernameValue(reel.instagram_username || '')
+        setEditReelCaptionValue(reel.instagram_caption || '')
+        setEditReelThumbnailValue(reel.thumbnail_url || '')
+        setEditReelError(null)
+      } },
       { label: UI.BUTTONS.DELETE, icon: <Trash size={14} />, isDanger: true, onClick: () => handleSoftDelete(reel.id) },
       { label: UI.BUTTONS.PROPERTIES, icon: <Info size={14} />, isSeparatorBefore: true, onClick: () => handleShowReelProperties(reel) }
     ])
@@ -519,6 +560,20 @@ export default function Folder() {
                             </div>
                           </div>
                         )}
+
+                        {/* Bottom shadow gradient for username text readability */}
+                        <div className="absolute bottom-0 left-0 right-0 h-1/4 bg-gradient-to-t from-black/75 to-transparent pointer-events-none z-10" />
+
+                        {/* Instagram logo and username overlay with placeholder fallback */}
+                        <div className="absolute bottom-3 left-3 z-10 flex items-center gap-1.5 text-xs text-white font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] select-none pointer-events-none">
+                          <div className="w-5 h-5 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center border border-white/10">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect width="20" height="20" x="2" y="2" rx="5" ry="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><line x1="17.5" x2="17.51" y1="6.5" y2="6.5" /></svg>
+                          </div>
+                          <span className={reel.instagram_username ? "" : "text-white/40 italic font-normal"}>
+                            @{reel.instagram_username || 'username'}
+                          </span>
+                        </div>
+
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity pointer-events-none">
                           <div className="w-10 h-10 rounded-full bg-black/60 border border-white/20 flex items-center justify-center text-white"><ExternalLink size={16} /></div>
                         </div>
@@ -530,9 +585,29 @@ export default function Folder() {
                           <Trash2 size={15} />
                         </button>
                       </div>
-                      <div className="p-3.5 flex flex-col border-t border-border-subtle bg-bg-surface/20 min-h-[70px] justify-center">
-                        <p className="text-xs text-text-secondary line-clamp-2 leading-relaxed break-words">
-                          {reel.note || <span className="text-text-muted italic">{UI.PLACEHOLDERS.DOUBLE_CLICK_EDIT}</span>}
+                      <div className="p-3.5 flex flex-col border-t border-border-subtle bg-bg-surface/20 min-h-[85px] justify-between">
+                        <p className={`text-[11px] line-clamp-2 leading-relaxed break-words mb-2 italic ${reel.instagram_caption ? 'text-text-secondary' : 'text-text-muted select-none'}`} title={reel.instagram_caption || 'No caption available.'}>
+                          "{reel.instagram_caption || 'No caption available.'}"
+                        </p>
+                        <p
+                          onDoubleClick={(e) => {
+                            e.stopPropagation()
+                            setReelToEdit({
+                              id: reel.id,
+                              note: reel.note || '',
+                              instagram_username: reel.instagram_username || null,
+                              instagram_caption: reel.instagram_caption || null,
+                              thumbnail_url: reel.thumbnail_url || null
+                            })
+                            setEditReelNoteValue(reel.note || '')
+                            setEditReelUsernameValue(reel.instagram_username || '')
+                            setEditReelCaptionValue(reel.instagram_caption || '')
+                            setEditReelThumbnailValue(reel.thumbnail_url || '')
+                            setEditReelError(null)
+                          }}
+                          className="text-xs text-text-primary font-semibold line-clamp-2 leading-relaxed break-words cursor-pointer select-none"
+                        >
+                          {reel.note || <span className="text-text-muted font-normal italic">{UI.PLACEHOLDERS.DOUBLE_CLICK_EDIT}</span>}
                         </p>
                       </div>
                     </div>
@@ -578,8 +653,51 @@ export default function Folder() {
                 <label className="block text-xs font-mono tracking-widest text-text-muted uppercase mb-2">{UI.LABELS.YOUR_NOTE}</label>
                 <textarea placeholder={UI.PLACEHOLDERS.REEL_NOTE_EXP} value={reelNote} onChange={(e) => setReelNote(e.target.value)} className="w-full bg-bg-elevated border border-border-default text-text-primary rounded-md py-2.5 px-3.5 text-sm focus:border-accent focus:outline-none resize-none" rows={3} />
               </div>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setAddReelShowAdvanced(!addReelShowAdvanced)}
+                  className="text-xs font-mono text-accent hover:underline flex items-center gap-1.5 cursor-pointer bg-transparent border-none p-0 focus:outline-none select-none"
+                >
+                  {addReelShowAdvanced ? '[-]' : '[+]'} Add details manually (if scraper fails)
+                </button>
+              </div>
+              {addReelShowAdvanced && (
+                <div className="space-y-4 border-t border-border-subtle pt-4 mt-2">
+                  <div>
+                    <label className="block text-xs font-mono tracking-widest text-text-muted uppercase mb-2">Instagram Username</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. instagram_user"
+                      value={addReelUsername}
+                      onChange={(e) => setAddReelUsername(e.target.value)}
+                      className="w-full bg-bg-elevated border border-border-default text-text-primary rounded-md py-2.5 px-3.5 text-sm focus:border-accent focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-mono tracking-widest text-text-muted uppercase mb-2">Reel Caption</label>
+                    <textarea
+                      placeholder="e.g. This is an awesome recipe..."
+                      value={addReelCaption}
+                      onChange={(e) => setAddReelCaption(e.target.value)}
+                      className="w-full bg-bg-elevated border border-border-default text-text-primary rounded-md py-2.5 px-3.5 text-sm focus:border-accent focus:outline-none resize-none"
+                      rows={2}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-mono tracking-widest text-text-muted uppercase mb-2">Custom Thumbnail Image URL</label>
+                    <input
+                      type="url"
+                      placeholder="e.g. https://images.unsplash.com/..."
+                      value={addReelThumbnail}
+                      onChange={(e) => setAddReelThumbnail(e.target.value)}
+                      className="w-full bg-bg-elevated border border-border-default text-text-primary rounded-md py-2.5 px-3.5 text-sm focus:border-accent focus:outline-none"
+                    />
+                  </div>
+                </div>
+              )}
               <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => { setIsAddReelOpen(false); setReelUrl(''); setReelNote(''); setReelError(null) }} className="btn-ghost" disabled={reelSubmitting}>{UI.BUTTONS.CANCEL}</button>
+                <button type="button" onClick={() => { setIsAddReelOpen(false); setReelUrl(''); setReelNote(''); setAddReelUsername(''); setAddReelCaption(''); setAddReelThumbnail(''); setAddReelShowAdvanced(false); setReelError(null) }} className="btn-ghost" disabled={reelSubmitting}>{UI.BUTTONS.CANCEL}</button>
                 <button type="submit" className="btn-primary" disabled={reelSubmitting}>{reelSubmitting ? <Loader2 className="animate-spin mr-2" size={16} /> : UI.BUTTONS.SAVE_REEL}</button>
               </div>
             </form>
@@ -634,19 +752,31 @@ export default function Folder() {
         </div>
       )}
 
-      {reelToRename && (
+      {reelToEdit && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-overlay backdrop-blur-md">
-          <div className="w-full max-w-[400px] bg-bg-card border border-border-default rounded-xl p-8 shadow-2xl mx-4">
-            <h3 className="text-xl font-bold text-text-primary mb-6">{UI.TITLES.EDIT_REEL_NOTE}</h3>
-            <form onSubmit={handleRenameReelSubmit} className="space-y-6">
-              {renameReelError && <div className="p-3 text-xs border border-destructive/20 bg-destructive/10 text-destructive rounded-md">{renameReelError}</div>}
+          <div className="w-full max-w-[480px] bg-bg-card border border-border-default rounded-xl p-8 shadow-2xl mx-4 overflow-y-auto max-h-[90vh]">
+            <h3 className="text-xl font-bold text-text-primary mb-6">Edit Reel Details</h3>
+            <form onSubmit={handleEditReelSubmit} className="space-y-6">
+              {editReelError && <div className="p-3 text-xs border border-destructive/20 bg-destructive/10 text-destructive rounded-md">{editReelError}</div>}
               <div>
                 <label className="block text-xs font-mono tracking-widest text-text-muted uppercase mb-2">{UI.LABELS.NOTE}</label>
-                <textarea value={renameReelNoteValue} onChange={(e) => setRenameReelNoteValue(e.target.value)} className="w-full bg-bg-elevated border border-border-default text-text-primary rounded-md py-2.5 px-3.5 text-sm focus:border-accent focus:outline-none resize-none" rows={4} required autoFocus />
+                <textarea value={editReelNoteValue} onChange={(e) => setEditReelNoteValue(e.target.value)} className="w-full bg-bg-elevated border border-border-default text-text-primary rounded-md py-2.5 px-3.5 text-sm focus:border-accent focus:outline-none resize-none" rows={2} />
+              </div>
+              <div>
+                <label className="block text-xs font-mono tracking-widest text-text-muted uppercase mb-2">Instagram Username</label>
+                <input type="text" value={editReelUsernameValue} onChange={(e) => setEditReelUsernameValue(e.target.value)} className="w-full bg-bg-elevated border border-border-default text-text-primary rounded-md py-2.5 px-3.5 text-sm focus:border-accent focus:outline-none" placeholder="e.g. instagram_user" />
+              </div>
+              <div>
+                <label className="block text-xs font-mono tracking-widest text-text-muted uppercase mb-2">Instagram Caption</label>
+                <textarea value={editReelCaptionValue} onChange={(e) => setEditReelCaptionValue(e.target.value)} className="w-full bg-bg-elevated border border-border-default text-text-primary rounded-md py-2.5 px-3.5 text-sm focus:border-accent focus:outline-none resize-none" rows={3} placeholder="e.g. Reel caption..." />
+              </div>
+              <div>
+                <label className="block text-xs font-mono tracking-widest text-text-muted uppercase mb-2">Thumbnail Image URL</label>
+                <input type="url" value={editReelThumbnailValue} onChange={(e) => setEditReelThumbnailValue(e.target.value)} className="w-full bg-bg-elevated border border-border-default text-text-primary rounded-md py-2.5 px-3.5 text-sm focus:border-accent focus:outline-none" placeholder="e.g. https://images.unsplash.com/..." />
               </div>
               <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setReelToRename(null)} className="btn-ghost" disabled={isRenamingReel}>{UI.BUTTONS.CANCEL}</button>
-                <button type="submit" className="btn-primary" disabled={isRenamingReel}>{isRenamingReel ? UI.BUTTONS.SAVING : UI.BUTTONS.SAVE}</button>
+                <button type="button" onClick={() => setReelToEdit(null)} className="btn-ghost" disabled={isEditingReel}>{UI.BUTTONS.CANCEL}</button>
+                <button type="submit" className="btn-primary" disabled={isEditingReel}>{isEditingReel ? UI.BUTTONS.SAVING : UI.BUTTONS.SAVE}</button>
               </div>
             </form>
           </div>

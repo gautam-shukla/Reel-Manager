@@ -28,6 +28,8 @@ CREATE TABLE IF NOT EXISTS public.reels (
   instagram_url TEXT NOT NULL,
   thumbnail_url TEXT,
   note TEXT DEFAULT '',
+  instagram_username TEXT,
+  instagram_caption TEXT,
   is_deleted BOOLEAN DEFAULT FALSE,
   deleted_at TIMESTAMPTZ,
   original_folder_id UUID REFERENCES public.folders(id) ON DELETE SET NULL, -- for restoring after folder deletion or move

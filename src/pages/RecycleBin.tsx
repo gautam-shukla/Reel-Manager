@@ -12,6 +12,8 @@ interface DeletedReel {
   instagram_url: string
   thumbnail_url: string | null
   note: string
+  instagram_username?: string | null
+  instagram_caption?: string | null
   deleted_at: string
   original_folder_id: string
 }
@@ -50,7 +52,7 @@ export default function RecycleBin() {
       ] = await Promise.all([
         supabase
           .from('reels')
-          .select('id, instagram_url, thumbnail_url, note, deleted_at, original_folder_id')
+          .select('id, instagram_url, thumbnail_url, note, instagram_username, instagram_caption, deleted_at, original_folder_id')
           .eq('user_id', user.id)
           .eq('is_deleted', true)
           .gte('deleted_at', sevenDaysAgo)
@@ -336,9 +338,27 @@ export default function RecycleBin() {
                               <div className="mb-2 text-[11px] font-mono text-text-muted flex items-center gap-1.5 justify-center">{UI.LABELS.INSTAGRAM_COM}</div>
                             </div>
                           )}
+
+                          {/* Bottom shadow gradient for username text readability */}
+                          <div className="absolute bottom-0 left-0 right-0 h-1/4 bg-gradient-to-t from-black/75 to-transparent pointer-events-none z-10" />
+
+                          {/* Instagram logo and username overlay (with grayscale/low opacity) with placeholder fallback */}
+                          <div className="absolute bottom-3 left-3 z-10 flex items-center gap-1.5 text-xs text-white/70 font-semibold drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] select-none pointer-events-none">
+                            <div className="w-5 h-5 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center border border-white/10">
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="opacity-75"><rect width="20" height="20" x="2" y="2" rx="5" ry="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><line x1="17.5" x2="17.51" y1="6.5" y2="6.5" /></svg>
+                            </div>
+                            <span className={reel.instagram_username ? "" : "text-white/40 italic font-normal"}>
+                              @{reel.instagram_username || 'username'}
+                            </span>
+                          </div>
                         </div>
-                        <div className="p-3.5 flex flex-col border-t border-border-subtle bg-bg-surface/20 flex-1 justify-between min-h-[80px]">
-                          <p className="text-xs text-text-muted line-clamp-2 leading-relaxed mb-2">{reel.note || <span className="italic">{UI.LABELS.NO_NOTE}</span>}</p>
+                        <div className="p-3.5 flex flex-col border-t border-border-subtle bg-bg-surface/20 flex-1 justify-between min-h-[95px]">
+                          <div>
+                            <p className="text-[11px] text-text-muted line-clamp-2 leading-relaxed mb-2 italic" title={reel.instagram_caption || 'No caption available.'}>
+                              "{reel.instagram_caption || 'No caption available.'}"
+                            </p>
+                            <p className="text-xs text-text-muted line-clamp-2 leading-relaxed mb-2">{reel.note || <span className="italic">{UI.LABELS.NO_NOTE}</span>}</p>
+                          </div>
                           <span className="text-[11px] font-semibold text-red-400/90 font-mono tracking-wide select-none">{UI.LABELS.WARNING_LABEL}{getDaysLeft(reel.deleted_at)}</span>
                         </div>
                       </div>
