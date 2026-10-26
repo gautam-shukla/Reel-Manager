@@ -3,34 +3,23 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "frontend",
+    "backend",
+    "extension"
+  ],
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
-    "lint": "eslint"
-  },
-  "dependencies": {
-    "@supabase/ssr": "^0.10.3",
-    "@supabase/supabase-js": "^2.106.2",
-    "axios": "^1.16.1",
-    "cheerio": "^1.2.0",
-    "cors": "^2.8.6",
-    "express": "^5.2.1",
-    "instagram-url-direct": "^2.0.7",
-    "lucide-react": "^1.17.0",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "react-router-dom": "^6.22.3"
+    "dev": "concurrently -k -p \"[{name}]\" -n \"BACKEND,FRONTEND\" -c \"blue.bold,cyan.bold\" \"npm run dev --workspace=@reel-manager/backend\" \"npm run dev --workspace=@reel-manager/frontend\"",
+    "dev:frontend": "npm run dev --workspace=@reel-manager/frontend",
+    "dev:backend": "npm run dev --workspace=@reel-manager/backend",
+    "dev:extension": "npm run dev --workspace=@reel-manager/extension",
+    "build": "npm run build --workspaces",
+    "build:frontend": "npm run build --workspace=@reel-manager/frontend",
+    "build:backend": "npm run build --workspace=@reel-manager/backend",
+    "build:extension": "npm run build --workspace=@reel-manager/extension",
+    "lint": "npm run lint --workspaces"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.0.0",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "@vitejs/plugin-react": "^4.3.4",
-    "eslint": "^9",
-    "tailwindcss": "^4.0.0",
-    "typescript": "^5",
-    "vite": "^5.4.11"
+    "concurrently": "^9.1.2"
   }
 }

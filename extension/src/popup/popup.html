@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reel Manager</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <header class="popup-header">
+      <div class="brand">
+        <div class="logo-box">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <polygon points="5 3 19 12 5 21 5 3"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">Reel Manager</h1>
+          <p class="brand-subtitle">Side-by-side Instagram Assistant</p>
+        </div>
+      </div>
+    </header>
+
+    <div class="user-card" id="user-card">
+      <div class="user-status-indicator">
+        <span class="status-dot" id="status-dot"></span>
+        <span class="user-email" id="user-email">Checking status...</span>
+      </div>
+      <button class="signout-btn" id="signout-btn" style="display: none;">Sign Out</button>
+    </div>
+
+    <div class="logged-in-view" id="logged-in-view" style="display: none;">
+      <div class="stats-row">
+        <div class="stat-box">
+          <span class="stat-num" id="folder-count">-</span>
+          <span class="stat-label">Folders</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-num" id="recent-count">-</span>
+          <span class="stat-label">Recent Saves</span>
+        </div>
+      </div>
+
+      <div class="action-buttons">
+        <button class="btn btn-primary" id="open-instagram-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+            <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+          </svg>
+          Browse Instagram Reels
+        </button>
+        <button class="btn btn-secondary" id="open-webapp-btn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+            <polyline points="15 3 21 3 21 9"/>
+            <line x1="10" y1="14" x2="21" y2="3"/>
+          </svg>
+          Open Reel Manager
+        </button>
+      </div>
+
+      <div class="tip-box">
+        💡 <strong>Quick Shortcut:</strong> Press <kbd>Alt + R</kbd> on any Instagram page to toggle the side-by-side dock.
+      </div>
+    </div>
+
+    <div class="logged-out-view" id="logged-out-view" style="display: none;">
+      <p class="login-msg">Log in to save reels directly from Instagram into your folders.</p>
+      
+      <div class="sync-callout">
+        Open <a href="#" id="sync-webapp-link">Reel Manager</a> in a tab to auto-sync your login, or sign in below:
+      </div>
+
+      <form id="popup-login-form" class="login-form">
+        <input type="email" id="login-email" placeholder="Email" required />
+        <input type="password" id="login-password" placeholder="Password" required />
+        <div id="login-error" class="error-msg" style="display: none;"></div>
+        <button type="submit" class="btn btn-primary" id="login-submit-btn">Sign In</button>
+      </form>
+    </div>
+  </div>
+
+  <script type="module" src="./popup.ts"></script>
+</body>
+</html>
