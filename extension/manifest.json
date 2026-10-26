@@ -53,7 +53,8 @@
     "https://*.instagram.com/*",
     "http://localhost:*/*",
     "http://127.0.0.1:*/*",
-    "https://*.supabase.co/*"
+    "https://*.supabase.co/*",
+    "https://*.vercel.app/*"
   ],
   "web_accessible_resources": [
     {

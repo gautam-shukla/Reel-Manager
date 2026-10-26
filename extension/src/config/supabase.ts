@@ -1,9 +1,9 @@
 import { AuthSession, Folder, ReelPayload, SavedReel, UserProfile } from '../types/index.js'
 
-export const SUPABASE_URL = 'https://jyxukgnvceauicdiuyuo.supabase.co'
-export const SUPABASE_ANON_KEY = 'sb_publishable_s1w00m2nAYGaZW9H5cXfnQ_2J1WO_pi'
-export const BACKEND_URL = 'http://localhost:5000'
-export const WEBAPP_URL = 'http://localhost:3000'
+export const SUPABASE_URL = (import.meta as any).env?.VITE_SUPABASE_URL || 'https://jyxukgnvceauicdiuyuo.supabase.co'
+export const SUPABASE_ANON_KEY = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || 'sb_publishable_s1w00m2nAYGaZW9H5cXfnQ_2J1WO_pi'
+export const BACKEND_URL = (import.meta as any).env?.VITE_BACKEND_URL || 'http://localhost:5000'
+export const WEBAPP_URL = (import.meta as any).env?.VITE_WEBAPP_URL || 'http://localhost:3000'
 
 const commonHeaders = {
   apikey: SUPABASE_ANON_KEY,

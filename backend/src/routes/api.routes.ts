@@ -5,6 +5,16 @@ import { handleCheckDuplicate } from '../controllers/duplicate.controller.js'
 
 export const apiRouter = Router()
 
+// Root API status endpoint
+apiRouter.get('/', (_req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    service: 'reel-manager-backend',
+    version: '2.3',
+    timestamp: new Date().toISOString()
+  })
+})
+
 // Health check endpoint
 apiRouter.get('/health', (_req, res) => {
   res.status(200).json({
