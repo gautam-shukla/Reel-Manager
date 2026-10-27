@@ -52,6 +52,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Fetch current user and theme
   const fetchUser = useCallback(async () => {
+    const code = new URLSearchParams(window.location.search).get('code')
+    if (code) {
+      try {
+        await supabase.auth.exchangeCodeForSession(code)
+        window.history.replaceState({}, document.title, window.location.pathname)
+      } catch (e) {
+        logger.error('Error exchanging OAuth code:', e)
+      }
+    }
+
     const timeout = setTimeout(() => {
       setLoading(false)
     }, 4000)
@@ -146,10 +156,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           localStorage.setItem('session_start_time', Date.now().toString())
         }
       } else {
-        setUser(null)
-        localStorage.removeItem('session_start_time')
-        if (pathnameRef.current !== '/login') {
-          navigate('/login')
+        const hasAuthParams =
+          window.location.search.includes('code=') ||
+          window.location.hash.includes('access_token=')
+
+        if (!hasAuthParams) {
+          setUser(null)
+          localStorage.removeItem('session_start_time')
+          if (pathnameRef.current !== '/login') {
+            navigate('/login')
+          }
         }
       }
     })
