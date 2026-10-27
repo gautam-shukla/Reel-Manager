@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { createClient } from 'lib/supabase/client'
 import { CONFIG } from 'constants/config'
@@ -46,10 +46,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate()
   const location = useLocation()
   const pathname = location.pathname
+  const pathnameRef = useRef(pathname)
+  pathnameRef.current = pathname
   const supabase = createClient()
 
   // Fetch current user and theme
   const fetchUser = useCallback(async () => {
+    const timeout = setTimeout(() => {
+      setLoading(false)
+    }, 4000)
+
     try {
       const { data: { user: authUser } } = await supabase.auth.getUser()
       if (authUser) {
@@ -73,6 +79,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       logger.error('Error fetching user:', err)
     } finally {
+      clearTimeout(timeout)
       setLoading(false)
     }
   }, [supabase])
@@ -141,7 +148,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       } else {
         setUser(null)
         localStorage.removeItem('session_start_time')
-        if (pathname !== '/login') {
+        if (pathnameRef.current !== '/login') {
           navigate('/login')
         }
       }
@@ -150,7 +157,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return () => {
       subscription.unsubscribe()
     }
-  }, [fetchUser, supabase, navigate, pathname])
+  }, [fetchUser, supabase, navigate])
 
   // Session expiry check (6 hours)
   useEffect(() => {
