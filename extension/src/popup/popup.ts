@@ -103,3 +103,77 @@ loginForm.addEventListener('submit', (e) => {
     }
   })
 })
+
+// Server Configuration Elements
+const serverUrlText = document.getElementById('server-url-text') as HTMLElement
+const serverStatusPill = document.getElementById('server-status-pill') as HTMLElement
+const serverConfigBtn = document.getElementById('server-config-btn') as HTMLButtonElement
+const serverConfigModal = document.getElementById('server-config-modal') as HTMLElement
+const closeServerModal = document.getElementById('close-server-modal') as HTMLButtonElement
+const customServerUrlInput = document.getElementById('custom-server-url') as HTMLInputElement
+const saveServerUrlBtn = document.getElementById('save-server-url-btn') as HTMLButtonElement
+const presetBtns = document.querySelectorAll<HTMLButtonElement>('.preset-btn')
+
+function formatHostDisplay(fullUrl: string): string {
+  try {
+    const u = new URL(fullUrl)
+    return u.host || fullUrl
+  } catch {
+    return fullUrl.replace(/^https?:\/\//, '')
+  }
+}
+
+function updateServerDisplay(url: string) {
+  if (serverUrlText) {
+    serverUrlText.textContent = formatHostDisplay(url)
+  }
+  if (customServerUrlInput) {
+    customServerUrlInput.value = url
+  }
+}
+
+// Fetch current config on open
+chrome.runtime.sendMessage({ type: 'GET_CONFIG' }, (res) => {
+  if (res?.success && res.data?.webappUrl) {
+    updateServerDisplay(res.data.webappUrl)
+  }
+})
+
+// Modal Open/Close
+serverStatusPill?.addEventListener('click', () => {
+  if (serverConfigModal) serverConfigModal.style.display = 'flex'
+})
+serverConfigBtn?.addEventListener('click', () => {
+  if (serverConfigModal) serverConfigModal.style.display = 'flex'
+})
+closeServerModal?.addEventListener('click', () => {
+  if (serverConfigModal) serverConfigModal.style.display = 'none'
+})
+
+// Quick presets
+presetBtns.forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const targetUrl = btn.dataset.url
+    if (targetUrl) {
+      chrome.runtime.sendMessage({ type: 'SET_WEBAPP_URL', url: targetUrl }, (res) => {
+        if (res?.success) {
+          updateServerDisplay(targetUrl)
+          if (serverConfigModal) serverConfigModal.style.display = 'none'
+        }
+      })
+    }
+  })
+})
+
+// Custom URL Save
+saveServerUrlBtn?.addEventListener('click', () => {
+  const custom = customServerUrlInput?.value.trim()
+  if (custom) {
+    chrome.runtime.sendMessage({ type: 'SET_WEBAPP_URL', url: custom }, (res) => {
+      if (res?.success) {
+        updateServerDisplay(custom)
+        if (serverConfigModal) serverConfigModal.style.display = 'none'
+      }
+    })
+  }
+})

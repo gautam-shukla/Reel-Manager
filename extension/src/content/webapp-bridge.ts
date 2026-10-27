@@ -52,13 +52,17 @@ function syncSessionToExtension() {
       }
     }
 
-    chrome.runtime.sendMessage({ type: 'SYNC_SESSION', session: formatted }, (response) => {
+    chrome.runtime.sendMessage({
+      type: 'SYNC_SESSION',
+      session: formatted,
+      webappUrl: window.location.origin
+    }, (response) => {
       if (chrome.runtime.lastError) {
         // Extension background may not be awake yet
         return
       }
       if (response?.success) {
-        console.log('[Reel Manager Extension] Successfully synced session from web app:', formatted.user.email)
+        console.log('[Reel Manager Extension] Successfully synced session from web app:', formatted.user.email, 'URL:', window.location.origin)
       }
     })
   }

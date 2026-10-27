@@ -464,7 +464,7 @@ export class ReelManagerSidebar {
             <span class="rm-brand-title">Reel Manager</span>
           </div>
           <div class="rm-header-actions">
-            <button class="rm-icon-btn" id="rm-btn-webapp" title="Open Web App (localhost:3000)">
+            <button class="rm-icon-btn" id="rm-btn-webapp" title="Open Reel Manager">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
                 <polyline points="15 3 21 3 21 9"/>

@@ -54,7 +54,7 @@ export interface AuthSession {
 }
 
 export type ExtensionMessage =
-  | { type: 'SYNC_SESSION'; session: AuthSession }
+  | { type: 'SYNC_SESSION'; session: AuthSession; webappUrl?: string }
   | { type: 'GET_SESSION' }
   | { type: 'SIGN_IN'; email: string; password: string }
   | { type: 'SIGN_OUT' }
@@ -66,3 +66,5 @@ export type ExtensionMessage =
   | { type: 'OPEN_WEBAPP'; path?: string }
   | { type: 'REEL_DETECTED'; reel: DetectedReel }
   | { type: 'CHECK_DUPLICATE'; url?: string; shortcode?: string }
+  | { type: 'GET_CONFIG' }
+  | { type: 'SET_WEBAPP_URL'; url: string }

@@ -13,16 +13,29 @@ import {
   saveReelToDatabase,
   signInWithPassword,
   checkDuplicateReel,
-  WEBAPP_URL
+  getWebappUrl,
+  getBackendUrl,
+  setRuntimeUrls,
+  DEFAULT_WEBAPP_URL,
+  DEFAULT_BACKEND_URL
 } from '../config/supabase.js'
 
-// Cache session in memory and sync with chrome.storage.local
+// Cache session and target URLs in memory and sync with chrome.storage.local
 let cachedSession: AuthSession | null = null
+let cachedWebappUrl: string = DEFAULT_WEBAPP_URL
+let cachedBackendUrl: string = DEFAULT_BACKEND_URL
 
-// Load initial session on startup
-chrome.storage.local.get(['session'], (result) => {
+// Load initial session and URLs on startup
+chrome.storage.local.get(['session', 'webappUrl', 'backendUrl'], (result) => {
   if (result.session) {
     cachedSession = result.session
+  }
+  if (result.webappUrl) {
+    cachedWebappUrl = result.webappUrl
+    setRuntimeUrls(result.webappUrl, result.backendUrl || result.webappUrl)
+  }
+  if (result.backendUrl) {
+    cachedBackendUrl = result.backendUrl
   }
 })
 
@@ -67,9 +80,17 @@ async function handleMessage(message: ExtensionMessage): Promise<any> {
   switch (message.type) {
     case 'SYNC_SESSION': {
       cachedSession = message.session
-      await chrome.storage.local.set({ session: message.session })
+      const toSet: Record<string, any> = { session: message.session }
+      if (message.webappUrl) {
+        cachedWebappUrl = message.webappUrl
+        cachedBackendUrl = message.webappUrl
+        setRuntimeUrls(message.webappUrl, message.webappUrl)
+        toSet.webappUrl = message.webappUrl
+        toSet.backendUrl = message.webappUrl
+      }
+      await chrome.storage.local.set(toSet)
       notifyInstagramTabs({ type: 'SESSION_UPDATED', session: message.session })
-      return { synced: true }
+      return { synced: true, webappUrl: cachedWebappUrl }
     }
 
     case 'GET_SESSION': {
@@ -130,7 +151,7 @@ async function handleMessage(message: ExtensionMessage): Promise<any> {
       // If thumbnail or username is missing, query backend scraper for fallback enrichment
       if (!thumbnail || !username) {
         try {
-          const enriched = await fetchMetadataFromBackend(message.payload.instagram_url)
+          const enriched = await fetchMetadataFromBackend(message.payload.instagram_url, cachedBackendUrl)
           if (!thumbnail && enriched.thumbnail && !enriched.thumbnail.includes('images.unsplash.com')) {
             thumbnail = enriched.thumbnail
           }
@@ -146,7 +167,8 @@ async function handleMessage(message: ExtensionMessage): Promise<any> {
         const duplicate = await checkDuplicateReel(
           cachedSession.access_token,
           cachedSession.user.id,
-          message.payload.instagram_url
+          message.payload.instagram_url,
+          cachedBackendUrl
         )
         if (duplicate.isDuplicate) {
           return {
@@ -175,7 +197,8 @@ async function handleMessage(message: ExtensionMessage): Promise<any> {
       return await checkDuplicateReel(
         cachedSession.access_token,
         cachedSession.user.id,
-        message.url || message.shortcode || ''
+        message.url || message.shortcode || '',
+        cachedBackendUrl
       )
     }
 
@@ -185,18 +208,40 @@ async function handleMessage(message: ExtensionMessage): Promise<any> {
     }
 
     case 'FETCH_THUMBNAIL': {
-      return await fetchMetadataFromBackend(message.url)
+      return await fetchMetadataFromBackend(message.url, cachedBackendUrl)
     }
 
     case 'OPEN_WEBAPP': {
-      const targetUrl = message.path ? `${WEBAPP_URL}${message.path}` : WEBAPP_URL
-      const tabs = await chrome.tabs.query({ url: `${WEBAPP_URL}/*` })
+      const currentUrl = cachedWebappUrl || await getWebappUrl()
+      const targetUrl = message.path ? `${currentUrl}${message.path}` : currentUrl
+      const tabs = await chrome.tabs.query({ url: `${currentUrl}/*` })
       if (tabs.length > 0 && tabs[0].id) {
         await chrome.tabs.update(tabs[0].id, { active: true, url: targetUrl })
       } else {
         await chrome.tabs.create({ url: targetUrl })
       }
-      return { opened: true }
+      return { opened: true, url: targetUrl }
+    }
+
+    case 'GET_CONFIG': {
+      const webappUrl = cachedWebappUrl || await getWebappUrl()
+      const backendUrl = cachedBackendUrl || await getBackendUrl()
+      return {
+        webappUrl,
+        backendUrl
+      }
+    }
+
+    case 'SET_WEBAPP_URL': {
+      const cleanUrl = (message.url || '').trim().replace(/\/+$/, '')
+      if (cleanUrl) {
+        cachedWebappUrl = cleanUrl
+        cachedBackendUrl = cleanUrl
+        setRuntimeUrls(cleanUrl, cleanUrl)
+        await chrome.storage.local.set({ webappUrl: cleanUrl, backendUrl: cleanUrl })
+        return { success: true, webappUrl: cleanUrl }
+      }
+      return { success: false, error: 'Invalid URL' }
     }
 
     default:

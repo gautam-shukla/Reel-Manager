@@ -43,6 +43,8 @@ function copyExtensionAssets() {
 
 export default defineConfig({
   base: './',
+  envDir: path.resolve(__dirname, '..'),
+  envPrefix: ['VITE_', 'NEXT_PUBLIC_'],
   plugins: [copyExtensionAssets()],
   build: {
     outDir: 'dist',

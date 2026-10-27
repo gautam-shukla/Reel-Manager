@@ -80,6 +80,32 @@
         <button type="submit" class="btn btn-primary" id="login-submit-btn">Sign In</button>
       </form>
     </div>
+
+    <!-- Active Connected Server Footer -->
+    <footer class="server-status-footer">
+      <div class="server-status-pill" id="server-status-pill" title="Click to view or switch app URL">
+        <span class="server-dot"></span>
+        <span class="server-url-text" id="server-url-text">reel-manager-sand.vercel.app</span>
+      </div>
+      <button class="server-config-btn" id="server-config-btn" title="Configure App URL">⚙️</button>
+    </footer>
+
+    <!-- App URL Config Modal -->
+    <div class="server-config-modal" id="server-config-modal" style="display: none;">
+      <div class="server-config-header">
+        <span>App URL Configuration</span>
+        <button type="button" id="close-server-modal" class="modal-close-btn">&times;</button>
+      </div>
+      <p class="server-config-desc">Connect the extension to your deployed web app or local development:</p>
+      <div class="quick-url-presets">
+        <button type="button" class="preset-btn" data-url="https://reel-manager-sand.vercel.app">Vercel (Online)</button>
+        <button type="button" class="preset-btn" data-url="http://localhost:3000">Localhost (Dev)</button>
+      </div>
+      <div class="server-input-row">
+        <input type="text" id="custom-server-url" class="server-input" placeholder="https://..." />
+        <button type="button" id="save-server-url-btn" class="btn btn-primary btn-sm">Save</button>
+      </div>
+    </div>
   </div>
 
   <script type="module" src="./popup.ts"></script>

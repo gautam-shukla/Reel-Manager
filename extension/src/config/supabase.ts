@@ -2,8 +2,33 @@ import { AuthSession, Folder, ReelPayload, SavedReel, UserProfile } from '../typ
 
 export const SUPABASE_URL = (import.meta as any).env?.VITE_SUPABASE_URL || 'https://jyxukgnvceauicdiuyuo.supabase.co'
 export const SUPABASE_ANON_KEY = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || 'sb_publishable_s1w00m2nAYGaZW9H5cXfnQ_2J1WO_pi'
-export const BACKEND_URL = (import.meta as any).env?.VITE_BACKEND_URL || 'http://localhost:5000'
-export const WEBAPP_URL = (import.meta as any).env?.VITE_WEBAPP_URL || 'http://localhost:3000'
+export const DEFAULT_WEBAPP_URL = (import.meta as any).env?.VITE_WEBAPP_URL || 'https://reel-manager-sand.vercel.app'
+export const DEFAULT_BACKEND_URL = (import.meta as any).env?.VITE_BACKEND_URL || 'https://reel-manager-sand.vercel.app'
+export let WEBAPP_URL = DEFAULT_WEBAPP_URL
+export let BACKEND_URL = DEFAULT_BACKEND_URL
+
+export function setRuntimeUrls(webappUrl?: string, backendUrl?: string) {
+  if (webappUrl) WEBAPP_URL = webappUrl.replace(/\/+$/, '')
+  if (backendUrl) BACKEND_URL = backendUrl.replace(/\/+$/, '')
+}
+
+export async function getWebappUrl(): Promise<string> {
+  try {
+    const stored = await chrome.storage.local.get(['webappUrl'])
+    return stored.webappUrl || DEFAULT_WEBAPP_URL
+  } catch {
+    return DEFAULT_WEBAPP_URL
+  }
+}
+
+export async function getBackendUrl(): Promise<string> {
+  try {
+    const stored = await chrome.storage.local.get(['backendUrl'])
+    return stored.backendUrl || DEFAULT_BACKEND_URL
+  } catch {
+    return DEFAULT_BACKEND_URL
+  }
+}
 
 const commonHeaders = {
   apikey: SUPABASE_ANON_KEY,
@@ -209,17 +234,18 @@ export async function fetchRecentUserReels(token: string, userId: string, limit 
 /**
  * Ask backend scraper or fallback for thumbnail and caption
  */
-export async function fetchMetadataFromBackend(url: string): Promise<{ thumbnail?: string; username?: string; caption?: string }> {
+export async function fetchMetadataFromBackend(url: string, customBackendUrl?: string): Promise<{ thumbnail?: string; username?: string; caption?: string }> {
+  const targetBase = customBackendUrl || BACKEND_URL || DEFAULT_BACKEND_URL
   try {
-    const res = await fetch(`${BACKEND_URL}/api/thumbnail`, {
+    const res = await fetch(`${targetBase}/api/thumbnail`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      signal: AbortSignal.timeout(4000),
+      signal: AbortSignal.timeout(2500),
       body: JSON.stringify({ url })
     })
 
     if (res.ok) {
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
       return {
         thumbnail: data.thumbnail,
         username: data.username,
@@ -227,7 +253,7 @@ export async function fetchMetadataFromBackend(url: string): Promise<{ thumbnail
       }
     }
   } catch {
-    // Backend may not be running locally; will use DOM-extracted metadata
+    // Backend may not be running locally or online endpoint unavailable; will use DOM-extracted metadata
   }
 
   return {}
@@ -243,7 +269,7 @@ export interface DuplicateCheckResult {
 
 /**
  * Check if a reel with the given shortcode or URL already exists in any of the user's folders.
- * Tries the local backend duplicate check endpoint (with memory cache) first with 2s timeout,
+ * Tries the backend duplicate check endpoint first with a quick 1.5s timeout,
  * with direct Supabase REST query as fallback with 2.5s timeout.
  */
 const RESERVED_SLUGS = new Set([
@@ -265,38 +291,43 @@ export function extractValidShortcode(urlOrCode: string): string | null {
 export async function checkDuplicateReel(
   token: string,
   userId: string,
-  shortcodeOrUrl: string
+  shortcodeOrUrl: string,
+  customBackendUrl?: string
 ): Promise<DuplicateCheckResult> {
   const shortcode = extractValidShortcode(shortcodeOrUrl)
   if (!shortcode) {
     return { isDuplicate: false }
   }
 
-  // 1. Try local backend duplicate service first (executes check_duplicate.py or Node cache)
-  try {
-    const backendRes = await fetch(`${BACKEND_URL}/api/check-duplicate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      signal: AbortSignal.timeout(2000),
-      body: JSON.stringify({ url: shortcodeOrUrl, shortcode, user_id: userId })
-    })
-    if (backendRes.ok) {
-      const bData = await backendRes.json()
-      if (bData && typeof bData.isDuplicate === 'boolean') {
-        return {
-          isDuplicate: bData.isDuplicate,
-          folderName: bData.folderName || 'Folder',
-          folderId: bData.folderId,
-          existingReelId: bData.reelId,
-          shortcode
+  const targetBase = customBackendUrl || BACKEND_URL || DEFAULT_BACKEND_URL
+
+  // 1. Try backend duplicate service first if available (quick 1.5s timeout)
+  if (targetBase) {
+    try {
+      const backendRes = await fetch(`${targetBase}/api/check-duplicate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        signal: AbortSignal.timeout(1500),
+        body: JSON.stringify({ url: shortcodeOrUrl, shortcode, user_id: userId })
+      })
+      if (backendRes.ok) {
+        const bData = await backendRes.json().catch(() => null)
+        if (bData && typeof bData.isDuplicate === 'boolean') {
+          return {
+            isDuplicate: bData.isDuplicate,
+            folderName: bData.folderName || 'Folder',
+            folderId: bData.folderId,
+            existingReelId: bData.reelId,
+            shortcode
+          }
         }
       }
+    } catch {
+      // Backend offline or error; continue seamlessly to direct Supabase REST query
     }
-  } catch {
-    // Backend offline or timed out; continue to direct Supabase REST query
   }
 
   // 2. Direct Supabase REST API query using unambiguous foreign key join folders!folder_id
